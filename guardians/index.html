@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guardians of the Desert Night</title>
+<style>
+:root{--bg:#f6f1e4;--ink:#1d2430;--muted:#5b6470;--card:#fffdf7;--line:#d8cfb8;--gold:#8a5a12;--go:#2d5a3d;--goink:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a0e1a;--ink:#f0e6d0;--muted:#a3a9b6;--card:#131b2e;--line:#27324a;--gold:#e8b84b;--go:#e8b84b;--goink:#0a0e1a}}
+:root[data-theme="dark"]{--bg:#0a0e1a;--ink:#f0e6d0;--muted:#a3a9b6;--card:#131b2e;--line:#27324a;--gold:#e8b84b;--go:#e8b84b;--goink:#0a0e1a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 Georgia,"Times New Roman",serif;padding:24px 16px 60px}
+main{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.eyebrow{font:600 12px/1 system-ui,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+h1{font-size:2rem;line-height:1.12;margin:6px 0 4px}
+.sub{font-style:italic;color:var(--muted);margin:0}
+svg{width:100%;height:auto;display:block;border-radius:12px}
+a.card{display:block;text-decoration:none;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+a.card:focus-visible,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+a.card h2{margin:0 0 4px;font-size:1.25rem}a.card p{margin:0;color:var(--muted);font-size:.98rem}
+a.card span{display:inline-block;margin-top:12px;background:var(--go);color:var(--goink);font:700 15px system-ui,sans-serif;padding:10px 16px;border-radius:8px}
+button{font:600 13px system-ui,sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 11px;cursor:pointer}
+footer{color:var(--muted);font:13px/1.5 system-ui,sans-serif}
+</style></head><body><main>
+<div class="top"><span class="eyebrow">Sonoran Stories, Book One</span><button id="t" type="button">Dark</button></div>
+<div><h1>Guardians of the Desert Night</h1><p class="sub">The Watchers of the Saguaro</p></div>
+<svg viewBox="0 0 600 220" role="img" aria-label="Saguaros with glowing eyes under a full moon">
+<rect width="600" height="220" fill="#131b2e"/><circle cx="455" cy="70" r="42" fill="#f0e6d0"/>
+<path d="M0,160 L90,120 L170,150 L260,110 L340,150 L430,125 L520,155 L600,130 L600,220 L0,220Z" fill="#2a1a3a"/>
+<path d="M0,185 L600,175 L600,220 L0,220Z" fill="#070a12"/>
+<g fill="#070a12"><rect x="140" y="80" width="22" height="110" rx="11"/><rect x="108" y="110" width="14" height="44" rx="7"/><rect x="108" y="140" width="44" height="14" rx="7"/><rect x="180" y="100" width="14" height="40" rx="7"/><rect x="150" y="126" width="44" height="14" rx="7"/>
+<rect x="300" y="120" width="16" height="70" rx="8"/><rect x="455" y="60" width="26" height="128" rx="13"/><rect x="418" y="92" width="16" height="50" rx="8"/><rect x="418" y="128" width="50" height="16" rx="8"/><rect x="502" y="80" width="16" height="48" rx="8"/><rect x="468" y="112" width="50" height="16" rx="8"/></g>
+<g fill="#e8b84b"><circle cx="147" cy="96" r="2.6"/><circle cx="155" cy="96" r="2.6"/><circle cx="305" cy="133" r="2.2"/><circle cx="311" cy="133" r="2.2"/><circle cx="463" cy="78" r="3"/><circle cx="473" cy="78" r="3"/></g></svg>
+<a class="card" href="/guardians/story.html"><h2>Watch the Watchers wake up</h2><p>The story from the book, with moving saguaros, talking animals and voices. Tap the stars. Tap the characters.</p><span>Play the story</span></a>
+<a class="card" href="/guardians/story-architect.html"><h2>Build your own adventure</h2><p>Story Architect teaches you to write a choose-your-own-adventure book, one scene and one door at a time. Then print it.</p><span>Open Story Architect</span></a>
+<footer>Nothing here asks for a name or an email. Stories you build are saved only on the device you are using.<br>Copyright 2026 Wayne Jordan. Jordan Endeavors.</footer>
+</main><script>
+var r=document.documentElement,b=document.getElementById("t");
+function d(){return r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches}
+function l(){b.textContent=d()?"Light":"Dark"}
+try{var s=localStorage.getItem("gdn-theme");if(s)r.dataset.theme=s}catch(e){}
+l();b.onclick=function(){var n=d()?"light":"dark";r.dataset.theme=n;try{localStorage.setItem("gdn-theme",n)}catch(e){}l()};
+</script></body></html>
