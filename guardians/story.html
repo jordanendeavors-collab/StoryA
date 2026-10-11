@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Guardians of the Desert Night — Interactive Story</title>
+<style>
+:root {
+  --night: #0a0e1a; --night2: #131b2e; --dusk: #1e1535;
+  --gold: #e8b84b; --gold-dim: #8b6914; --amber: #d4903c;
+  --warm: #c47a2e; --moon: #f0e6d0; --star: #f5f0e8;
+  --cactus: #2d5a3d; --cactus-lt: #3a7a50; --cactus-dk: #1a3d28;
+  --cliff: #6b4226; --sand: #c4a67a;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--night);font-family:Georgia,'Times New Roman',serif;color:var(--moon);touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
+
+/* LOADER */
+#loader{position:fixed;inset:0;z-index:9999;background:var(--night);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1s ease}
+#loader.hide{opacity:0;pointer-events:none}
+#loader h1{font-size:clamp(1.2rem,4vw,2.2rem);color:var(--gold);letter-spacing:.15em;text-align:center;margin-bottom:1.5rem;text-shadow:0 0 40px rgba(232,184,75,.3)}
+.load-bar{width:200px;height:3px;background:rgba(232,184,75,.15);border-radius:2px;overflow:hidden}
+.load-fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--amber));border-radius:2px;animation:loadF 2.5s ease forwards}
+@keyframes loadF{to{width:100%}}
+.load-sub{margin-top:1rem;font-size:.7rem;color:rgba(232,184,75,.4);letter-spacing:.3em;text-transform:uppercase}
+
+/* STAGE */
+#stage{position:fixed;inset:0;overflow:hidden;opacity:0;transition:opacity 1s ease}
+#stage.show{opacity:1}
+
+/* SKY */
+#sky{position:absolute;inset:0;transition:background 3s ease}
+.sky-night{background:linear-gradient(180deg,#050810 0%,#0a0e1a 30%,#131b2e 60%,#1e1535 100%)}
+.sky-dusk{background:linear-gradient(180deg,#1a1040 0%,#3a1848 25%,#8b3a50 50%,#cc5533 75%,#e8734a 100%)}
+.sky-dawn{background:linear-gradient(180deg,#1a1040 0%,#2a2060 20%,#d4728c 55%,#e8b84b 85%,#f0e6d0 100%)}
+
+/* STARS */
+#stars{position:absolute;inset:0;pointer-events:none;transition:opacity 3s ease}
+.star{position:absolute;background:var(--star);border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite alternate}
+@keyframes tw{0%{opacity:.1}100%{opacity:var(--mx,.9)}}
+.spark-container{position:absolute;pointer-events:none;z-index:50}
+.spark{position:absolute;width:3px;height:3px;background:var(--gold);border-radius:50%;animation:sparkO .8s ease forwards}
+@keyframes sparkO{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--sx),var(--sy)) scale(0);opacity:0}}
+
+/* MOON */
+#moon{position:absolute;width:clamp(60px,10vw,130px);height:clamp(60px,10vw,130px);border-radius:50%;background:radial-gradient(circle at 35% 35%,#f5f0e0,#e8dcc0,#d4c8a0);box-shadow:0 0 60px 20px rgba(240,230,208,.12);top:8%;right:12%;cursor:pointer;transition:opacity 3s ease,box-shadow 1s ease;animation:moonF 8s ease-in-out infinite alternate}
+@keyframes moonF{0%{transform:translateY(0)}100%{transform:translateY(-8px)}}
+
+/* LANDSCAPE */
+#landscape{position:absolute;bottom:0;left:0;right:0;height:45%;pointer-events:none}
+
+/* CHARACTERS */
+#characters{position:absolute;bottom:12%;left:0;right:0;height:30%;z-index:10;display:flex;align-items:flex-end;justify-content:center;gap:3%;padding:0 5%}
+.char-wrap{position:relative;cursor:pointer;transition:transform .3s ease;display:flex;flex-direction:column;align-items:center}
+.char-wrap:hover{transform:scale(1.05)}
+.char-wrap:active{transform:scale(1.1)}
+.char-wrap svg{filter:drop-shadow(0 4px 12px rgba(0,0,0,.5));transition:filter .3s ease}
+.char-wrap.speaking svg{filter:drop-shadow(0 0 20px rgba(232,184,75,.5))}
+.char-name-tag{font-size:clamp(.5rem,1.5vw,.75rem);color:var(--gold);text-align:center;margin-top:4px;letter-spacing:.1em;text-shadow:0 1px 4px rgba(0,0,0,.8);opacity:0;transition:opacity .3s ease}
+.char-wrap:hover .char-name-tag,.char-wrap.speaking .char-name-tag{opacity:1}
+.char-idle{animation:cIdle 2s ease-in-out infinite alternate}
+@keyframes cIdle{0%{transform:translateY(0) rotate(-.5deg)}100%{transform:translateY(-4px) rotate(.5deg)}}
+.char-walk{animation:cWalk .6s ease-in-out infinite alternate}
+@keyframes cWalk{0%{transform:translateY(0) rotate(-2deg)}100%{transform:translateY(-8px) rotate(2deg)}}
+
+/* SPEECH BUBBLES */
+.speech-bubble{position:absolute;background:rgba(10,14,26,.92);border:1.5px solid rgba(232,184,75,.35);border-radius:12px;padding:10px 14px;max-width:240px;min-width:100px;font-size:clamp(.6rem,1.6vw,.8rem);line-height:1.5;color:var(--moon);z-index:30;opacity:0;transform:translateY(10px) scale(.9);transition:opacity .4s ease,transform .4s ease;pointer-events:none;backdrop-filter:blur(8px)}
+.speech-bubble.show{opacity:1;transform:translateY(0) scale(1)}
+.speech-bubble::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid rgba(232,184,75,.35)}
+.speech-bubble .spk-name{font-size:.55rem;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px}
+
+/* NARRATION */
+#narration{position:absolute;bottom:0;left:0;right:0;z-index:20;background:linear-gradient(180deg,transparent 0%,rgba(10,14,26,.7) 20%,rgba(10,14,26,.95) 100%);padding:24px 5% 16px;min-height:20%}
+#narr-label{font-size:.55rem;letter-spacing:.25em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;opacity:.7;display:flex;align-items:center;gap:8px}
+.sound-ind{display:inline-flex;gap:2px;align-items:flex-end;height:12px;opacity:0;transition:opacity .3s ease}
+.sound-ind.active{opacity:1}
+.sound-ind .sb{width:3px;background:var(--gold);border-radius:1px;animation:sbAnim .4s ease-in-out infinite alternate;transform-origin:bottom}
+.sound-ind .sb:nth-child(1){height:3px;animation-delay:0s}
+.sound-ind .sb:nth-child(2){height:7px;animation-delay:.1s}
+.sound-ind .sb:nth-child(3){height:11px;animation-delay:.2s}
+.sound-ind .sb:nth-child(4){height:5px;animation-delay:.15s}
+.sound-ind .sb:nth-child(5){height:9px;animation-delay:.25s}
+@keyframes sbAnim{0%{transform:scaleY(.3)}100%{transform:scaleY(1)}}
+#narr-text{font-size:clamp(.78rem,2vw,1rem);line-height:1.7;color:var(--moon);max-width:680px;opacity:0;transition:opacity .6s ease}
+#narr-text.show{opacity:1}
+.cursor{display:inline-block;width:2px;height:1em;background:var(--gold);margin-left:2px;animation:blink .8s step-end infinite;vertical-align:text-bottom}
+@keyframes blink{50%{opacity:0}}
+.tap-hint{font-size:.55rem;color:rgba(232,184,75,.4);margin-top:6px;animation:pulse2 2s ease-in-out infinite}
+@keyframes pulse2{0%,100%{opacity:.3}50%{opacity:.7}}
+
+/* CONTROLS */
+#controls{position:fixed;bottom:6px;left:50%;transform:translateX(-50%);z-index:100;display:flex;align-items:center;gap:6px}
+#controls button{background:rgba(232,184,75,.12);border:1px solid rgba(232,184,75,.25);color:var(--gold);padding:5px 12px;border-radius:20px;font-family:inherit;font-size:.65rem;letter-spacing:.1em;cursor:pointer;transition:all .3s ease}
+#controls button:hover{background:rgba(232,184,75,.25);border-color:var(--gold)}
+#controls button.primary{background:var(--gold);color:var(--night);font-weight:700}
+#controls button.primary:hover{background:var(--amber)}
+#scene-counter{font-size:.55rem;color:rgba(232,184,75,.4);letter-spacing:.1em}
+#progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--warm),var(--gold));z-index:100;transition:width .6s ease}
+
+/* CHAPTER SELECT */
+#chapter-select{position:fixed;inset:0;z-index:200;background:rgba(10,14,26,.97);display:none;flex-direction:column;align-items:center;justify-content:center;padding:2rem;overflow-y:auto}
+#chapter-select.show{display:flex}
+#chapter-select h2{font-size:clamp(1.1rem,3vw,1.6rem);color:var(--gold);letter-spacing:.15em;margin-bottom:1.2rem}
+.ch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-width:500px;width:100%}
+.ch-card{background:rgba(232,184,75,.06);border:1px solid rgba(232,184,75,.15);border-radius:8px;padding:10px;cursor:pointer;transition:all .3s ease;text-align:center}
+.ch-card:hover{background:rgba(232,184,75,.15);border-color:var(--gold);transform:translateY(-2px)}
+.ch-card .ch-num{font-size:1.3rem;color:var(--gold);margin-bottom:3px}
+.ch-card .ch-title{font-size:.6rem;color:var(--moon);letter-spacing:.08em;line-height:1.3}
+
+/* HOTSPOTS */
+.hotspot{position:absolute;cursor:pointer;z-index:15;animation:hsPulse 2s ease-in-out infinite alternate}
+@keyframes hsPulse{0%{opacity:.4}100%{opacity:.8}}
+.hotspot-ring{width:28px;height:28px;border:2px solid var(--gold);border-radius:50%;animation:ringP 2s ease-in-out infinite}
+@keyframes ringP{0%{transform:scale(.8);opacity:.4}50%{transform:scale(1.2);opacity:.8}100%{transform:scale(.8);opacity:.4}}
+
+/* FACT POPUP */
+.fact-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);background:rgba(10,14,26,.96);border:1.5px solid var(--gold);border-radius:16px;padding:20px 24px;max-width:340px;width:90%;z-index:300;opacity:0;pointer-events:none;transition:opacity .4s ease,transform .4s ease;backdrop-filter:blur(12px)}
+.fact-popup.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.fact-popup h3{color:var(--gold);font-size:.95rem;letter-spacing:.1em;margin-bottom:6px}
+.fact-popup p{font-size:.75rem;line-height:1.6;color:var(--moon);opacity:.85}
+.fact-popup .close-fact{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--gold);font-size:1.1rem;cursor:pointer}
+
+/* TITLE SCREEN */
+#title-screen{position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#050810 0%,#0a0e1a 40%,#1e1535 100%);cursor:pointer}
+.ts-moon{position:absolute;width:clamp(80px,14vw,180px);height:clamp(80px,14vw,180px);border-radius:50%;background:radial-gradient(circle at 35% 35%,#f5f0e0,#e8dcc0);box-shadow:0 0 80px 30px rgba(240,230,208,.12);top:10%;right:15%;animation:moonF 8s ease-in-out infinite alternate}
+#title-screen h1{font-size:clamp(1.6rem,5.5vw,3.5rem);color:var(--gold);text-shadow:0 0 60px rgba(232,184,75,.3);letter-spacing:.06em;line-height:1.2;text-align:center;z-index:2;animation:tIn 2s ease .5s both}
+.ts-sub{font-size:clamp(.65rem,1.8vw,1rem);color:var(--moon);opacity:0;letter-spacing:.15em;margin-top:.8rem;font-style:italic;z-index:2;animation:tIn 2s ease 1.2s both}
+.ts-tap{font-size:.6rem;color:rgba(232,184,75,.5);letter-spacing:.3em;text-transform:uppercase;margin-top:1.5rem;z-index:2;animation:tIn 1.5s ease 2s both,pulse2 2s ease-in-out 3.5s infinite}
+@keyframes tIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+.ts-desert{position:absolute;bottom:0;left:0;right:0;height:30%;z-index:1}
+
+@media(max-width:600px){
+  #narration{padding:16px 4% 10px;min-height:24%}
+  #controls button{padding:4px 8px;font-size:.55rem}
+  .speech-bubble{max-width:180px;font-size:.6rem;padding:8px 10px}
+  .ch-grid{grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px}
+  #characters{bottom:14%;gap:2%}
+}
+</style>
+</head>
+<body>
+<div id="loader"><h1>Guardians of the<br>Desert Night</h1><div class="load-bar"><div class="load-fill"></div></div><div class="load-sub">Loading the desert...</div></div>
+
+<div id="title-screen">
+  <div class="ts-moon"></div>
+  <h1>Guardians of the<br>Desert Night</h1>
+  <div class="ts-sub">The Watchers of the Saguaro — An Interactive Story</div>
+  <div class="ts-tap">✦ Tap anywhere to begin ✦</div>
+  <svg class="ts-desert" viewBox="0 0 1200 300" preserveAspectRatio="none">
+    <path d="M0,220 Q150,180 300,210 Q450,240 600,190 Q750,140 900,200 Q1050,250 1200,180 L1200,300 L0,300Z" fill="#1a1028" opacity="0.5"/>
+    <path d="M0,260 Q200,240 400,260 Q600,280 800,250 Q1000,230 1200,260 L1200,300 L0,300Z" fill="#0a0e1a"/>
+    <g transform="translate(150,140)"><rect x="-8" y="0" width="16" height="100" rx="8" fill="#0d1222"/><rect x="-26" y="25" width="10" height="45" rx="5" fill="#0d1222"/><rect x="-26" y="25" width="28" height="10" rx="5" fill="#0d1222"/><circle cx="-2" cy="18" r="3" fill="#e8b84b" opacity="0.7"><animate attributeName="opacity" values="0.3;0.8;0.3" dur="4s" repeatCount="indefinite"/></circle><circle cx="6" cy="18" r="3" fill="#e8b84b" opacity="0.7"><animate attributeName="opacity" values="0.3;0.8;0.3" dur="4s" begin="0.3s" repeatCount="indefinite"/></circle></g>
+    <g transform="translate(500,160)"><rect x="-6" y="0" width="12" height="80" rx="6" fill="#0d1222"/><circle cx="0" cy="12" r="2.5" fill="#e8b84b" opacity="0.6"><animate attributeName="opacity" values="0.2;0.7;0.2" dur="3s" repeatCount="indefinite"/></circle></g>
+    <g transform="translate(850,130)"><rect x="-10" y="0" width="20" height="120" rx="10" fill="#0d1222"/><rect x="-30" y="30" width="12" height="50" rx="6" fill="#0d1222"/><rect x="-30" y="30" width="32" height="12" rx="6" fill="#0d1222"/><rect x="18" y="40" width="12" height="40" rx="6" fill="#0d1222"/><rect x="10" y="40" width="28" height="12" rx="6" fill="#0d1222"/><circle cx="-3" cy="18" r="3.5" fill="#e8b84b" opacity="0.7"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="3.5s" repeatCount="indefinite"/></circle><circle cx="7" cy="18" r="3.5" fill="#e8b84b" opacity="0.7"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="3.5s" begin="0.2s" repeatCount="indefinite"/></circle></g>
+  </svg>
+</div>
+
+<div id="stage">
+  <div id="sky" class="sky-night"></div>
+  <div id="stars"></div>
+  <div id="moon"></div>
+  <svg id="landscape" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMax slice"></svg>
+  <div id="characters"></div>
+  <div id="narration">
+    <div id="narr-label">NARRATOR <span class="sound-ind" id="sound-ind"><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span></span></div>
+    <div id="narr-text"></div>
+  </div>
+</div>
+<div id="progress" style="width:0%"></div>
+<div id="controls">
+  <button id="btn-chapters" title="Chapters">☰</button>
+  <button id="btn-prev">◀</button>
+  <span id="scene-counter">1 / 1</span>
+  <button id="btn-next" class="primary">▶ NEXT</button>
+  <button id="btn-auto" title="Autoplay">⏵</button>
+  <button id="btn-voice" title="Voice Narration">🔇</button>
+</div>
+<div id="chapter-select"><h2>✦ Choose a Chapter ✦</h2><div class="ch-grid" id="ch-grid"></div><button id="ch-close" style="margin-top:1.2rem;background:none;border:1px solid rgba(232,184,75,.3);color:var(--gold);padding:6px 18px;border-radius:20px;cursor:pointer;font-family:inherit;font-size:.65rem;letter-spacing:.1em;">CLOSE</button></div>
+<div class="fact-popup" id="fact-popup"><button class="close-fact" id="close-fact">✕</button><h3 id="fact-title"></h3><p id="fact-body"></p></div>
+
+<script>
+// ===== SCENE DATA =====
+const SCENES = [
+  {id:'ch1-intro',chapter:1,chapterTitle:'The Mystical Desert',sky:'dusk',label:'NARRATOR',
+   text:'In the heart of the Sonoran Desert, where the crimson sunset kisses the rugged horizon, lies Canyon Lake — a mesmerizing oasis cradled by wild desert hills and ancient canyons.',
+   characters:[],landscape:'canyon-dusk',
+   interactive:[{type:'fact',x:'70%',y:'25%',title:'🌵 Canyon Lake',body:'Canyon Lake sits in the Superstition Mountains along the Apache Trail. Created by the Mormon Flat Dam in 1925, the canyon was carved by the Salt River over millions of years.'}]},
+
+  {id:'ch1-trail',chapter:1,sky:'dusk',label:'NARRATOR',
+   text:'The Apache Trail winds through the Superstition Mountains like a snake that forgot where it was going and decided to enjoy the scenery instead. It is one of the most beautiful and treacherous roads in all of Arizona.',
+   characters:[],landscape:'canyon-dusk',
+   interactive:[{type:'fact',x:'30%',y:'35%',title:'🛤️ The Apache Trail',body:'State Route 88 was built in 1903 to haul supplies to Theodore Roosevelt Dam. Parts of it are still unpaved today.'}]},
+
+  {id:'ch1-saguaros',chapter:1,sky:'dusk',label:'NARRATOR',
+   text:'But the real story of Canyon Lake is about the tall green figures standing silently on every ridge. The saguaros. And what they do when no one is watching.',
+   characters:['ironside-sil'],landscape:'canyon-dusk',
+   interactive:[{type:'fact',x:'50%',y:'30%',title:'🌵 Saguaro Facts',body:"A saguaro can live 200 years. It doesn't grow its first arm until it's 50-75 years old. It can weigh 6,000 pounds fully hydrated. In Arizona, it's a felony to harm one!"}]},
+
+  {id:'ch2-sunset',chapter:2,chapterTitle:'The Watchers Awaken',sky:'night',label:'NARRATOR',
+   text:'Every evening, as the sun drops behind the Superstition Mountains and the sky transitions through that impossible Arizona gradient — gold to copper to rose to violet to the deep blue-black of the Sonoran night — something happens that no human has ever seen.',
+   characters:[],landscape:'canyon-night',interactive:[]},
+
+  {id:'ch2-eyes',chapter:2,sky:'night',label:'NARRATOR',
+   text:'The saguaros open their eyes. Not metaphorical eyes. Real ones. Small, amber-colored, set just below the crown. First one. Then another. Then a hundred. Then ten thousand. Amber lights flickering on like the first stars of evening.',
+   characters:['eyes-opening'],landscape:'canyon-night',interactive:[]},
+
+  {id:'ch2-ranks',chapter:2,sky:'night',label:'NARRATOR',
+   text:'The Watchers are organized. At the top are the Elders — great saguaros with five, six, seven arms. Below them, the Sentinels on fixed patrol routes. Then the Runners who carry messages. And finally, the Pups: the little ones, still armless, in training.',
+   characters:['ironside','barrel','needles'],landscape:'canyon-night',
+   interactive:[{type:'fact',x:'20%',y:'20%',title:'📋 Watcher Ranks',body:'Elders: 100+ years, 5-7 arms. Sentinels: 2-3 arms, fixed patrols. Runners: Young, fast (for a cactus). Pups: Under 50, armless, in training.'}]},
+
+  {id:'ch3-ironside',chapter:3,chapterTitle:'Meet the Watchers',sky:'night',label:'OLD IRONSIDE',
+   text:'"We stand where we can see the most, because what you can see, you can protect. What you can protect, you can love. And what you love — that never dies."',
+   characters:['ironside'],landscape:'ridge-night',
+   interactive:[{type:'fact',x:'75%',y:'15%',title:'🏔️ Old Ironside',body:'Age: 200+ years. Seven arms. Tallest saguaro on the Canyon Lake ridge. Remembers the Apache riders and the construction of Mormon Flat Dam.'}]},
+
+  {id:'ch3-barrel',chapter:3,sky:'night',label:'BARREL',
+   text:'"I got plenty. Don\'t argue with a cactus, Mama. We always grow more."',
+   characters:['barrel','javelina'],landscape:'wash-night',
+   interactive:[{type:'fact',x:'25%',y:'20%',title:'🌵 Barrel',body:"Stout, wide, perfectly horizontal arms. Patrols the east wash, feeds javelina families from his own fruit, stands as a living breakwater during monsoon floods. He's never lost one."}]},
+
+  {id:'ch3-needles',chapter:3,sky:'night',label:'NEEDLES',
+   text:'"I felt a tingle today! Right here, on my left side. I think an arm\'s coming in! ...Is that an arm? That feels like an arm. Somebody look at this — is this an arm?"',
+   characters:['needles'],landscape:'trail-night',
+   interactive:[{type:'fact',x:'60%',y:'25%',title:'🌱 Needles',body:"About 60 years old. Still armless — but he swears his first arm is coming any day now. He's the reader's entry point into the world."}]},
+
+  {id:'ch3-rosie-zip',chapter:3,sky:'night',label:'ROSIE',
+   text:'"Roadrunners. All engine, no steering."',
+   characters:['rosie','zip'],landscape:'trail-night',
+   interactive:[{type:'fact',x:'40%',y:'18%',title:'🐦 Zip the Roadrunner',body:'Greater roadrunners can run 20 mph, kill rattlesnakes by slamming them against rocks, and generally behave like they have somewhere extremely important to be at all times.'}]},
+
+  {id:'ch4-javelina',chapter:4,chapterTitle:'Desert Conversations',sky:'night',label:'BARREL',
+   text:'"How\'s the herd tonight, Mama Jav?"',
+   characters:['barrel','javelina'],landscape:'wash-night',
+   dialogueChain:[
+     {speaker:'MAMA JAV',text:'"Three days since we\'ve eaten well. The good prickly pears dried up. The babies are getting weak."'},
+     {speaker:'NARRATOR',text:'Barrel kneels down. With a grunt, he twists one of his own fruit from the crown of his head and rolls it gently toward the javelina family.'},
+     {speaker:'MAMA JAV',text:'"Barrel, you don\'t have to —"'},
+     {speaker:'BARREL',text:'"I got plenty. Don\'t argue with a cactus, Mama. We always grow more."'}
+   ],
+   interactive:[{type:'fact',x:'15%',y:'30%',title:'🐗 Javelinas',body:'Javelinas travel in herds of 6-12, rooting for prickly pear pads, agave hearts, and mesquite beans. Near-sighted, ill-tempered, and smell terrible. The Watchers love them.'}]},
+
+  {id:'ch4-zip',chapter:4,sky:'night',label:'ZIP',
+   text:'"Hikers on the Peralta Trail, about a mile in. Four of them. They have a dog off leash."',
+   characters:['rosie','zip'],landscape:'trail-night',
+   dialogueChain:[
+     {speaker:'ROSIE',text:'"Off leash? Near the kit fox den?"'},
+     {speaker:'ZIP',text:'"Already handled it. I did my distraction run. The dog chased me for about a quarter mile and the hikers leashed him."'},
+     {speaker:'ROSIE',text:'"Good bird, Zip."'},
+     {speaker:'ZIP',text:'"I\'m a good bird! I\'m the fastest bird! Did you see how fast I —"'},
+     {speaker:'ROSIE',text:'"Yes, Zip. We all saw."'}
+   ],interactive:[]},
+
+  {id:'ch4-gil',chapter:4,sky:'night',label:'OLD IRONSIDE',
+   text:'"Evening, Gil. How\'s the burrow?"',
+   characters:['ironside','gila'],landscape:'canyon-night',
+   dialogueChain:[
+     {speaker:'GIL',text:'"Fine. Going back in now."'},
+     {speaker:'OLD IRONSIDE',text:'"You just came out."'},
+     {speaker:'GIL',text:'"I saw what I needed to see. Goodnight."'},
+     {speaker:'NARRATOR',text:'Gil does this every night. Nobody takes it personally.'}
+   ],
+   interactive:[{type:'fact',x:'65%',y:'35%',title:'🦎 Gila Monsters',body:"One of only two venomous lizards in North America. Slow, brightly colored, spends 95% of its life underground. It does not apologize."}]},
+
+  {id:'ch4-owl',chapter:4,sky:'night',label:'TALON',
+   text:'"I need the boot on your south side this season. The north one has a draft."',
+   characters:['ironside','owl'],landscape:'ridge-night',
+   dialogueChain:[
+     {speaker:'SPINE',text:'"That\'s because you tore a chunk out of it catching that packrat last October."'},
+     {speaker:'TALON',text:'"That packrat was in your wall. I was doing you a favor."'},
+     {speaker:'SPINE',text:'"...Fair point. South boot it is."'}
+   ],
+   interactive:[{type:'fact',x:'70%',y:'20%',title:'🦉 Great Horned Owls',body:'Wingspan of four feet, talons exerting 300 psi. They nest in hollowed-out saguaro boots — creating an interesting landlord-tenant dynamic.'}]},
+
+  {id:'ch5-first',chapter:5,chapterTitle:'The Night Patrol',sky:'night',label:'NARRATOR',
+   text:'FIRST WATCH — sunset to three hours after. The Elders descend from the ridgelines. Roll call by territory. Every Sentinel reports: how many animals, any injuries, any new dens, any human activity. The Pups listen and try not to fidget.',
+   characters:['ironside','barrel','rosie','needles'],landscape:'ridge-night',interactive:[]},
+
+  {id:'ch5-second',chapter:5,sky:'night',label:'NARRATOR',
+   text:'SECOND WATCH — midnight to three hours before dawn. Active patrol. The Watchers move through the desert floor, checking burrows, distributing food and water. Young saguaros shadow the Sentinels, learning routes they will walk for decades.',
+   characters:['barrel','needles','javelina'],landscape:'wash-night',interactive:[]},
+
+  {id:'ch5-third',chapter:5,sky:'dawn',label:'NARRATOR',
+   text:'THIRD WATCH — pre-dawn. The return. Every Watcher walks back to their exact position before sunlight touches them. The Elders settle in with a slow, grinding sound. The Pups scramble, always cutting it close.',
+   characters:['ironside','needles'],landscape:'canyon-dawn',
+   dialogueChain:[
+     {speaker:'DUSTY',text:'"Was I facing this way yesterday? I feel like I was more to the right."'},
+     {speaker:'OLD IRONSIDE',text:'"You were facing south-southeast, tilted four degrees. Get it together, Dusty. Sun\'s coming."'}
+   ],interactive:[]},
+
+  {id:'ch6-goldfield',chapter:6,chapterTitle:'Tales of the Desert',sky:'night',label:'NARRATOR',
+   text:'Goldfield, the ghost town at the base of the Superstition Mountains, comes alive during the day with tourists and staged gunfights. But at night, three saguaros known as the Prospectors take over.',
+   characters:[],landscape:'canyon-night',
+   dialogueChain:[
+     {speaker:'GRIZZLE',text:'"Humans build. Humans leave. Humans come back and charge admission. Same story every century."'},
+     {speaker:'PICK',text:'"At least they stopped dynamiting the hillside. That was unpleasant."'},
+     {speaker:'NUGGET',text:'"I still have a piece of shrapnel in my trunk from 1897. Itches when it rains."'}
+   ],
+   interactive:[{type:'fact',x:'45%',y:'22%',title:'🏚️ Goldfield Ghost Town',body:'Founded in 1893 at the base of the Superstition Mountains. Boomed, busted, rebuilt as a tourist attraction. The saguaros watched the whole cycle.'}]},
+
+  {id:'ch6-ice',chapter:6,sky:'night',label:'FLATS',
+   text:'"The humans who stay in Tortilla Flat are different. They\'re not passing through. They chose the hard road, the small life, the quiet. I respect that."',
+   characters:[],landscape:'canyon-night',
+   interactive:[{type:'fact',x:'55%',y:'30%',title:'🍦 Tortilla Flat',body:'Population: six. One saloon, one store, one restaurant. The prickly pear ice cream is famous — and the nearby saguaros may have secretly helped the prickly pears grow better.'}]},
+
+  {id:'ch7-intro',chapter:7,chapterTitle:'The Seven Teachings',sky:'night',label:'NARRATOR',
+   text:'The desert has been teaching the same lessons for ten thousand years. The question is whether we\'re willing to listen.',
+   characters:['ironside'],landscape:'ridge-night',interactive:[]},
+
+  {id:'ch7-t1',chapter:7,sky:'night',label:'OLD IRONSIDE',
+   text:'✦ Teaching One ✦\n"Stand where you can see the most, because what you can see, you can protect."',
+   characters:['ironside'],landscape:'ridge-night',
+   interactive:[{type:'fact',x:'35%',y:'25%',title:'✦ Teaching 1',body:"Position yourself to be useful. Don't hide from responsibility. Take the post nobody else wants."}]},
+
+  {id:'ch7-t2',chapter:7,sky:'night',label:'BARREL',
+   text:'✦ Teaching Two ✦\n"Give from what you grow, not from what you\'ve stored."',
+   characters:['barrel'],landscape:'wash-night',
+   interactive:[{type:'fact',x:'60%',y:'25%',title:'✦ Teaching 2',body:'Generosity from abundance, not desperation. Take care of yourself so you can take care of others.'}]},
+
+  {id:'ch7-t3',chapter:7,sky:'night',label:'ROSIE',
+   text:'✦ Teaching Three ✦\n"Remember the path, even when the path is hard."',
+   characters:['rosie'],landscape:'trail-night',
+   interactive:[{type:'fact',x:'40%',y:'28%',title:'✦ Teaching 3',body:"Consistency matters. The animals depend on you being where you said you'd be."}]},
+
+  {id:'ch7-t4',chapter:7,sky:'night',label:'NEEDLES',
+   text:'✦ Teaching Four ✦\n"The smallest creature deserves the same watch as the largest."',
+   characters:['needles'],landscape:'canyon-night',
+   interactive:[{type:'fact',x:'55%',y:'22%',title:'✦ Teaching 4',body:'No creature too small to matter. No person too unimportant to help.'}]},
+
+  {id:'ch7-t5',chapter:7,sky:'night',label:'OLD IRONSIDE',
+   text:'✦ Teaching Five ✦\n"When you cannot fix it, stand close."',
+   characters:['ironside','needles'],landscape:'ridge-night',
+   interactive:[{type:'fact',x:'30%',y:'30%',title:'✦ Teaching 5',body:'Sometimes the only thing left to give is presence. Just being there.'}]},
+
+  {id:'ch7-t6',chapter:7,sky:'night',label:'NARRATOR',
+   text:'✦ Teaching Six ✦\n"Grow slowly and grow deep." One inch per year. Roots before arms. Foundation before height.',
+   characters:['needles'],landscape:'trail-night',interactive:[]},
+
+  {id:'ch7-t7',chapter:7,sky:'dawn',label:'OLD IRONSIDE',
+   text:'✦ Teaching Seven ✦\n"The sun always comes. Be ready." No matter how long the night, no matter how dark the patrol — dawn arrives. It always arrives.',
+   characters:['ironside','barrel','rosie','needles'],landscape:'canyon-dawn',interactive:[]},
+
+  {id:'ch8-end1',chapter:8,chapterTitle:'Until the Sun Comes Home',sky:'dawn',label:'NARRATOR',
+   text:'Tonight, the Watchers will wake again. Old Ironside will raise his arm and hum the call. Barrel will check on Mama Jav. Rosie will untangle Zip from whatever mess he\'s gotten himself into. And Needles will check his left side one more time.',
+   characters:['ironside','barrel','rosie','needles','zip'],landscape:'canyon-dawn',interactive:[]},
+
+  {id:'ch8-end2',chapter:8,sky:'dawn',label:'NARRATOR',
+   text:'Because the desert takes care of its own.\nAnd so do the Watchers.\nEvery night.\nEvery creature.\nEvery star.\nUntil the sun comes home.',
+   characters:['ironside','barrel','rosie','needles'],landscape:'canyon-dawn',interactive:[]},
+
+  {id:'ch8-credits',chapter:8,sky:'dawn',label:'',
+   text:'✦  ✦  ✦\n\nTHE END\n\nA story born on a five-mile hike\nthrough Canyon Lake, Arizona\n\nWritten by Wayne Jordan\nFor Sylas',
+   characters:[],landscape:'canyon-dawn',interactive:[]}
+];
+
+// ===== SVG CHARACTER BUILDERS =====
+function svgChar(name, scale) {
+  const s = (scale || 1) * 0.65;
+  const C = {
+    'ironside': `<svg width="${140*s}" height="${280*s}" viewBox="0 0 140 280">
+      <rect x="50" y="15" width="40" height="230" rx="20" fill="#2d5a3d"/>
+      <rect x="10" y="60" width="20" height="90" rx="10" fill="#2d5a3d"/>
+      <rect x="10" y="60" width="55" height="20" rx="10" fill="#2d5a3d"/>
+      <rect x="110" y="45" width="20" height="70" rx="10" fill="#2d5a3d"/>
+      <rect x="70" y="45" width="60" height="20" rx="10" fill="#2d5a3d"/>
+      <rect x="115" y="95" width="16" height="50" rx="8" fill="#2d5a3d"/>
+      <rect x="80" y="95" width="50" height="16" rx="8" fill="#2d5a3d"/>
+      <rect x="5" y="130" width="16" height="45" rx="8" fill="#2d5a3d"/>
+      <rect x="5" y="130" width="58" height="16" rx="8" fill="#2d5a3d"/>
+      <circle cx="62" cy="38" r="5" fill="#e8b84b" opacity="0.9"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite"/></circle>
+      <circle cx="78" cy="38" r="5" fill="#e8b84b" opacity="0.9"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="0.2s" repeatCount="indefinite"/></circle>
+      <line x1="55" y1="80" x2="58" y2="110" stroke="#1a3d28" stroke-width="2" opacity="0.5"/>
+      <line x1="75" y1="120" x2="72" y2="150" stroke="#1a3d28" stroke-width="1.5" opacity="0.4"/>
+    </svg>`,
+    'barrel': `<svg width="${120*s}" height="${240*s}" viewBox="0 0 120 240">
+      <rect x="20" y="30" width="80" height="180" rx="40" fill="#2d5a3d"/>
+      <rect x="-5" y="70" width="18" height="65" rx="9" fill="#2d5a3d"/>
+      <rect x="-5" y="70" width="42" height="18" rx="9" fill="#2d5a3d"/>
+      <rect x="107" y="70" width="18" height="65" rx="9" fill="#2d5a3d"/>
+      <rect x="80" y="70" width="45" height="18" rx="9" fill="#2d5a3d"/>
+      <circle cx="48" cy="55" r="4.5" fill="#e8b84b" opacity="0.85"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="3.5s" repeatCount="indefinite"/></circle>
+      <circle cx="68" cy="55" r="4.5" fill="#e8b84b" opacity="0.85"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="3.5s" begin="0.15s" repeatCount="indefinite"/></circle>
+      <circle cx="45" cy="28" r="7" fill="#c43030" opacity="0.8"/><circle cx="65" cy="22" r="6" fill="#c43030" opacity="0.7"/><circle cx="78" cy="30" r="5" fill="#c43030" opacity="0.6"/>
+    </svg>`,
+    'needles': `<svg width="${70*s}" height="${220*s}" viewBox="0 0 70 220">
+      <rect x="22" y="20" width="26" height="175" rx="13" fill="#3a7a50"/>
+      <ellipse cx="20" cy="90" rx="5" ry="3.5" fill="#3a7a50" opacity="0.6"/>
+      <circle cx="30" cy="42" r="3.5" fill="#e8b84b" opacity="0.9"><animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/></circle>
+      <circle cx="42" cy="42" r="3.5" fill="#e8b84b" opacity="0.9"><animate attributeName="opacity" values="0.4;1;0.4" dur="2s" begin="0.1s" repeatCount="indefinite"/></circle>
+      <line x1="22" y1="55" x2="13" y2="50" stroke="#5a9a6a" stroke-width="1.5"/>
+      <line x1="22" y1="75" x2="10" y2="72" stroke="#5a9a6a" stroke-width="1.5"/>
+      <line x1="48" y1="65" x2="58" y2="61" stroke="#5a9a6a" stroke-width="1.5"/>
+      <line x1="48" y1="85" x2="57" y2="82" stroke="#5a9a6a" stroke-width="1.5"/>
+    </svg>`,
+    'rosie': `<svg width="${100*s}" height="${250*s}" viewBox="0 0 100 250">
+      <rect x="35" y="15" width="30" height="200" rx="15" fill="#2d5a3d"/>
+      <rect x="8" y="55" width="16" height="55" rx="8" fill="#2d5a3d" transform="rotate(-12,8,55)"/>
+      <rect x="8" y="55" width="40" height="16" rx="8" fill="#2d5a3d" transform="rotate(-6,8,55)"/>
+      <rect x="65" y="42" width="16" height="50" rx="8" fill="#2d5a3d" transform="rotate(10,65,42)"/>
+      <rect x="52" y="42" width="42" height="16" rx="8" fill="#2d5a3d" transform="rotate(6,65,42)"/>
+      <circle cx="43" cy="35" r="4" fill="#e8b84b" opacity="0.85"/><circle cx="57" cy="35" r="4" fill="#e8b84b" opacity="0.85"/>
+    </svg>`,
+    'zip': `<svg width="${70*s}" height="${55*s}" viewBox="0 0 70 55">
+      <ellipse cx="28" cy="25" rx="20" ry="14" fill="#8b7355"/>
+      <polygon points="48,22 68,16 48,24" fill="#d4903c"/>
+      <circle cx="40" cy="20" r="3" fill="#1a1a2e"/><circle cx="40" cy="20" r="1.2" fill="white"/>
+      <line x1="10" y1="32" x2="6" y2="52" stroke="#8b7355" stroke-width="2.5"/>
+      <line x1="20" y1="34" x2="18" y2="54" stroke="#8b7355" stroke-width="2.5"/>
+      <line x1="8" y1="25" x2="-8" y2="15" stroke="#6b5540" stroke-width="2.5"/>
+      <line x1="8" y1="27" x2="-10" y2="22" stroke="#6b5540" stroke-width="2"/>
+      <line x1="28" y1="10" x2="24" y2="-2" stroke="#6b5540" stroke-width="1.5"/>
+      <line x1="31" y1="10" x2="30" y2="-4" stroke="#6b5540" stroke-width="1.5"/>
+    </svg>`,
+    'javelina': `<svg width="${60*s}" height="${45*s}" viewBox="0 0 60 45">
+      <ellipse cx="28" cy="25" rx="20" ry="14" fill="#6b5a4a"/>
+      <ellipse cx="8" cy="22" rx="9" ry="7" fill="#7a6a58"/>
+      <circle cx="5" cy="18" r="2" fill="#1a1a2e"/><circle cx="5" cy="18" r=".8" fill="white"/>
+      <polygon points="2,24 -3,26 2,26" fill="#5a4a3a"/>
+      <line x1="20" y1="37" x2="18" y2="45" stroke="#5a4a3a" stroke-width="3"/>
+      <line x1="33" y1="37" x2="35" y2="45" stroke="#5a4a3a" stroke-width="3"/>
+      <ellipse cx="7" cy="12" rx="3" ry="5" fill="#7a6a58"/><ellipse cx="14" cy="12" rx="3" ry="5" fill="#7a6a58"/>
+    </svg>`,
+    'gila': `<svg width="${65*s}" height="${28*s}" viewBox="0 0 65 28">
+      <rect x="5" y="7" width="52" height="16" rx="8" fill="#e85020"/>
+      <rect x="10" y="9" width="7" height="4" rx="2" fill="#1a1a2e"/><rect x="21" y="9" width="7" height="4" rx="2" fill="#1a1a2e"/>
+      <rect x="32" y="9" width="7" height="4" rx="2" fill="#1a1a2e"/><rect x="43" y="9" width="7" height="4" rx="2" fill="#1a1a2e"/>
+      <rect x="10" y="18" width="7" height="4" rx="2" fill="#1a1a2e"/><rect x="21" y="18" width="7" height="4" rx="2" fill="#1a1a2e"/>
+      <circle cx="5" cy="12" r="2" fill="#e8b84b"/><polygon points="-1,14 -6,12 -1,16" fill="#c43030"/>
+    </svg>`,
+    'owl': `<svg width="${55*s}" height="${60*s}" viewBox="0 0 55 60">
+      <ellipse cx="27" cy="36" rx="16" ry="20" fill="#6b5540"/>
+      <ellipse cx="27" cy="18" rx="20" ry="14" fill="#7a6a55"/>
+      <circle cx="20" cy="16" r="6" fill="#e8dcc0"/><circle cx="34" cy="16" r="6" fill="#e8dcc0"/>
+      <circle cx="20" cy="16" r="3.5" fill="#1a1a2e"/><circle cx="34" cy="16" r="3.5" fill="#1a1a2e"/>
+      <circle cx="20" cy="15" r="1.3" fill="white"/><circle cx="34" cy="15" r="1.3" fill="white"/>
+      <polygon points="27,20 24,25 30,25" fill="#d4903c"/>
+      <path d="M11,32 Q0,28 4,46" fill="#6b5540"/><path d="M43,32 Q55,28 51,46" fill="#6b5540"/>
+    </svg>`,
+    'ironside-sil': `<svg width="${90*s}" height="${230*s}" viewBox="0 0 90 230">
+      <rect x="30" y="10" width="30" height="195" rx="15" fill="#0d1222" opacity="0.7"/>
+      <rect x="3" y="45" width="12" height="65" rx="6" fill="#0d1222" opacity="0.7"/>
+      <rect x="3" y="45" width="38" height="12" rx="6" fill="#0d1222" opacity="0.7"/>
+      <rect x="72" y="35" width="12" height="50" rx="6" fill="#0d1222" opacity="0.7"/>
+      <rect x="48" y="35" width="36" height="12" rx="6" fill="#0d1222" opacity="0.7"/>
+      <circle cx="40" cy="25" r="3.5" fill="#e8b84b" opacity="0.5"><animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite"/></circle>
+      <circle cx="52" cy="25" r="3.5" fill="#e8b84b" opacity="0.5"><animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" begin="0.3s" repeatCount="indefinite"/></circle>
+    </svg>`,
+    'eyes-opening': `<svg width="${280*s}" height="${180*s}" viewBox="0 0 280 180">${(function(){let r='';for(let i=0;i<22;i++){const x=10+Math.random()*260,y=5+Math.random()*170,sz=2+Math.random()*3,d=2+Math.random()*4,dl=Math.random()*3;r+=`<circle cx="${x}" cy="${y}" r="${sz}" fill="#e8b84b" opacity="0"><animate attributeName="opacity" values="0;0.8;0.6" dur="${d}s" begin="${dl}s" fill="freeze"/></circle>`}return r})()}</svg>`
+  };
+  return C[name] || '';
+}
+
+// ===== LANDSCAPE SVGs =====
+function saguaroSils(n, x1, x2) {
+  let s = '';
+  for (let i = 0; i < n; i++) {
+    const x = x1 + (x2-x1)*(i/(n-1||1)) + (Math.random()*50-25);
+    const h = 50 + Math.random()*70, y = 170 + Math.random()*100;
+    const w = 8 + Math.random()*7;
+    s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w/2}" fill="#0a0e1a" opacity="0.8"/>`;
+    if (Math.random()>.4) {
+      const ay = y+15+Math.random()*20, dir = Math.random()>.5?1:-1, al=12+Math.random()*12;
+      s += `<rect x="${dir>0?x+w:x-al}" y="${ay}" width="${al}" height="${w*.7}" rx="${w*.35}" fill="#0a0e1a" opacity="0.8"/>`;
+      s += `<rect x="${dir>0?x+w+al-w*.7:x-al}" y="${ay-20-Math.random()*15}" width="${w*.7}" height="${20+Math.random()*15}" rx="${w*.35}" fill="#0a0e1a" opacity="0.8"/>`;
+    }
+    if (Math.random()>.5) {
+      const ey=y+10,d=2+Math.random()*3,dl=Math.random()*5;
+      s+=`<circle cx="${x+w*.35}" cy="${ey}" r="2" fill="#e8b84b" opacity="0"><animate attributeName="opacity" values="0;0.6;0.3" dur="${d}s" begin="${dl}s" repeatCount="indefinite"/></circle>`;
+      s+=`<circle cx="${x+w*.65}" cy="${ey}" r="2" fill="#e8b84b" opacity="0"><animate attributeName="opacity" values="0;0.6;0.3" dur="${d}s" begin="${dl+.2}s" repeatCount="indefinite"/></circle>`;
+    }
+  }
+  return s;
+}
+
+function svgLandscape(type) {
+  const L = {
+    'canyon-dusk': `<defs><linearGradient id="cG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8b5a3a"/><stop offset="100%" stop-color="#4a2a15"/></linearGradient></defs><path d="M0,200 Q100,100 200,180 Q350,80 500,160 Q650,60 800,150 Q950,90 1100,170 L1200,130 L1200,500 L0,500Z" fill="url(#cG)" opacity="0.6"/><path d="M0,300 Q150,250 300,280 Q500,240 700,270 Q900,230 1100,260 L1200,250 L1200,500 L0,500Z" fill="#3a1a0a" opacity="0.7"/><path d="M0,380 Q200,350 400,370 Q600,340 800,365 Q1000,345 1200,360 L1200,500 L0,500Z" fill="#2a1508"/>${saguaroSils(6,140,280)}`,
+    'canyon-night': `<path d="M0,200 Q100,120 250,190 Q400,90 550,170 Q700,80 850,160 Q1000,100 1200,140 L1200,500 L0,500Z" fill="#0d1222" opacity="0.7"/><path d="M0,300 Q200,260 400,290 Q600,250 800,280 Q1000,240 1200,270 L1200,500 L0,500Z" fill="#080d18"/><path d="M0,380 Q200,360 400,375 Q600,350 800,370 Q1000,355 1200,365 L1200,500 L0,500Z" fill="#050810"/>${saguaroSils(8,120,300)}`,
+    'canyon-dawn': `<defs><linearGradient id="dG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6b4226"/><stop offset="100%" stop-color="#2a1508"/></linearGradient></defs><path d="M0,220 Q150,140 300,200 Q500,100 700,180 Q900,110 1200,160 L1200,500 L0,500Z" fill="url(#dG)" opacity="0.5"/><path d="M0,320 Q200,280 400,310 Q600,270 800,300 Q1000,260 1200,290 L1200,500 L0,500Z" fill="#1a0e05" opacity="0.7"/><path d="M0,400 Q300,380 600,395 Q900,375 1200,390 L1200,500 L0,500Z" fill="#0f0805"/>${saguaroSils(7,130,300)}`,
+    'ridge-night': `<path d="M0,150 L200,100 L350,130 L500,80 L650,120 L800,70 L950,110 L1100,85 L1200,100 L1200,500 L0,500Z" fill="#0d1222" opacity="0.6"/><path d="M0,280 Q200,250 400,270 Q600,240 800,260 Q1000,235 1200,255 L1200,500 L0,500Z" fill="#080d18"/><path d="M0,370 Q300,350 600,365 Q900,345 1200,360 L1200,500 L0,500Z" fill="#050810"/>${saguaroSils(5,80,240)}`,
+    'wash-night': `<path d="M0,280 Q200,260 400,275 Q600,250 800,270 Q1000,245 1200,265 L1200,500 L0,500Z" fill="#0d1222" opacity="0.5"/><path d="M0,350 Q150,330 300,345 Q450,325 600,340 Q750,320 900,338 Q1050,325 1200,335 L1200,500 L0,500Z" fill="#080d18"/><path d="M0,400 Q300,390 600,398 Q900,385 1200,395 L1200,500 L0,500Z" fill="#050810"/>${saguaroSils(4,200,280)}`,
+    'trail-night': `<path d="M0,250 Q150,220 300,245 Q450,210 600,235 Q750,200 900,230 Q1050,215 1200,225 L1200,500 L0,500Z" fill="#0d1222" opacity="0.5"/><path d="M0,340 Q200,320 400,335 Q600,315 800,330 Q1000,310 1200,325 L1200,500 L0,500Z" fill="#080d18"/><path d="M500,340 L520,500 L580,500 L560,340Z" fill="#1a1530" opacity="0.3"/><path d="M0,410 Q300,400 600,408 Q900,395 1200,405 L1200,500 L0,500Z" fill="#050810"/>${saguaroSils(3,100,200)}`
+  };
+  return L[type] || L['canyon-night'];
+}
+
+// ===== ENGINE =====
+let currentScene = 0, autoplay = false, autoTimer = null, typeTimer = null, dialogueIndex = 0;
+const $ = id => document.getElementById(id);
+
+function init() {
+  // Stars
+  const starsEl = $('stars');
+  for (let i = 0; i < 100; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*55+'%';
+    const sz = 1+Math.random()*2.5;
+    s.style.width = sz+'px'; s.style.height = sz+'px';
+    s.style.setProperty('--d',(2+Math.random()*5)+'s');
+    s.style.setProperty('--mx',(0.4+Math.random()*0.6).toString());
+    s.style.animationDelay = Math.random()*5+'s';
+    starsEl.appendChild(s);
+  }
+
+  // Sky click -> star burst
+  $('sky').addEventListener('click', e => createStarBurst(e.clientX, e.clientY));
+  $('moon').addEventListener('click', () => {
+    $('moon').style.boxShadow = '0 0 120px 50px rgba(240,230,208,.35)';
+    setTimeout(() => $('moon').style.boxShadow = '', 1000);
+  });
+
+  buildChapterSelect();
+  $('btn-next').addEventListener('click', nextScene);
+  $('btn-prev').addEventListener('click', prevScene);
+  $('btn-chapters').addEventListener('click', toggleChapters);
+  $('ch-close').addEventListener('click', toggleChapters);
+  $('btn-auto').addEventListener('click', toggleAutoplay);
+  $('btn-voice').addEventListener('click', toggleVoice);
+  initVoices();
+  $('close-fact').addEventListener('click', () => $('fact-popup').classList.remove('show'));
+
+  document.addEventListener('keydown', e => {
+    if (e.key==='ArrowRight'||e.key===' ') nextScene();
+    else if (e.key==='ArrowLeft') prevScene();
+    else if (e.key==='Escape') { $('chapter-select').classList.remove('show'); $('fact-popup').classList.remove('show'); }
+  });
+
+  // Swipe support
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 60) { dx < 0 ? nextScene() : prevScene(); }
+  }, {passive:true});
+
+  $('title-screen').addEventListener('click', startStory);
+  setTimeout(() => $('loader').classList.add('hide'), 2800);
+}
+
+function createStarBurst(x, y) {
+  const container = document.createElement('div');
+  container.className = 'spark-container';
+  container.style.left = x+'px'; container.style.top = y+'px';
+  for (let i = 0; i < 8; i++) {
+    const sp = document.createElement('div');
+    sp.className = 'spark';
+    const angle = (i/8)*Math.PI*2;
+    const dist = 15+Math.random()*25;
+    sp.style.setProperty('--sx', Math.cos(angle)*dist+'px');
+    sp.style.setProperty('--sy', Math.sin(angle)*dist+'px');
+    container.appendChild(sp);
+  }
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 900);
+}
+
+function startStory() {
+  $('title-screen').style.transition = 'opacity 1.5s ease';
+  $('title-screen').style.opacity = '0';
+  $('title-screen').style.pointerEvents = 'none';
+  $('stage').classList.add('show');
+  setTimeout(() => { $('title-screen').style.display='none'; loadScene(0); }, 1500);
+}
+
+function buildChapterSelect() {
+  const grid = $('ch-grid'), chapters = [];
+  SCENES.forEach((s,i) => { if (s.chapterTitle) chapters.push({idx:i,num:s.chapter,title:s.chapterTitle}); });
+  chapters.forEach(ch => {
+    const card = document.createElement('div');
+    card.className = 'ch-card';
+    card.innerHTML = `<div class="ch-num">${ch.num}</div><div class="ch-title">${ch.title}</div>`;
+    card.addEventListener('click', () => { currentScene=ch.idx; loadScene(currentScene); toggleChapters(); });
+    grid.appendChild(card);
+  });
+}
+
+function toggleChapters() { $('chapter-select').classList.toggle('show'); }
+
+function nextScene() { stopSpeech(); if (currentScene < SCENES.length-1) loadScene(++currentScene); }
+function prevScene() { stopSpeech(); if (currentScene > 0) loadScene(--currentScene); }
+
+function toggleAutoplay() {
+  autoplay = !autoplay;
+  $('btn-auto').textContent = autoplay ? '⏸' : '⏵';
+  if (autoplay) scheduleAuto();
+  else clearTimeout(autoTimer);
+}
+
+function scheduleAuto() {
+  if (!autoplay) return;
+  const delay = SCENES[currentScene].dialogueChain ? 12000 : 8000;
+  autoTimer = setTimeout(() => { if (autoplay && currentScene < SCENES.length-1) { nextScene(); scheduleAuto(); } else { autoplay=false; $('btn-auto').textContent='⏵'; } }, delay);
+}
+
+function loadScene(idx) {
+  if (idx<0||idx>=SCENES.length) return;
+  currentScene = idx;
+  const scene = SCENES[idx];
+  dialogueIndex = 0;
+  clearTimeout(typeTimer); clearTimeout(autoTimer);
+
+  // Sky
+  $('sky').className = 'sky-'+(scene.sky||'night');
+  $('stars').style.opacity = scene.sky==='night'?'1':scene.sky==='dawn'?'0.3':'0.5';
+  $('moon').style.opacity = (scene.sky==='night'||scene.sky==='dusk')?'1':'0.3';
+
+  // Landscape
+  $('landscape').innerHTML = svgLandscape(scene.landscape||'canyon-night');
+
+  // Characters
+  const charsEl = $('characters');
+  charsEl.innerHTML = '';
+  const isMobile = window.innerWidth < 600;
+  if (scene.characters && scene.characters.length) {
+    scene.characters.forEach(name => {
+      const wrap = document.createElement('div');
+      wrap.className = 'char-wrap char-idle';
+      wrap.setAttribute('data-char', name);
+      wrap.innerHTML = svgChar(name, isMobile ? 0.8 : 1.1);
+      const cleanName = name.replace('-sil','').replace('eyes-opening','The Watchers');
+      const tag = document.createElement('div');
+      tag.className = 'char-name-tag';
+      tag.textContent = cleanName.charAt(0).toUpperCase()+cleanName.slice(1);
+      wrap.appendChild(tag);
+      wrap.addEventListener('click', () => handleCharClick(name, wrap));
+      charsEl.appendChild(wrap);
+    });
+  }
+
+  // Hotspots
+  document.querySelectorAll('.hotspot').forEach(el => el.remove());
+  if (scene.interactive) {
+    scene.interactive.forEach(item => {
+      if (item.type==='fact') {
+        const hs = document.createElement('div');
+        hs.className = 'hotspot';
+        hs.style.left = item.x; hs.style.top = item.y;
+        hs.innerHTML = '<div class="hotspot-ring"></div>';
+        hs.addEventListener('click', () => {
+          $('fact-title').textContent = item.title;
+          $('fact-body').textContent = item.body;
+          $('fact-popup').classList.add('show');
+        });
+        $('stage').appendChild(hs);
+      }
+    });
+  }
+
+  // Narration
+  $('narr-label').innerHTML = (scene.label || '') + ' <span class="sound-ind" id="sound-ind"><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span></span>';
+  stopSpeech();
+  typeText(scene.text);
+  // Speak the scene narration
+  speakText(scene.text, scene.label || 'NARRATOR');
+
+  // Dialogue hint
+  if (scene.dialogueChain && scene.dialogueChain.length) {
+    $('narration').style.cursor = 'pointer';
+    $('narration').onclick = advanceDialogue;
+  } else {
+    $('narration').style.cursor = 'default';
+    $('narration').onclick = null;
+  }
+
+  // Progress
+  $('progress').style.width = ((idx+1)/SCENES.length*100)+'%';
+  $('scene-counter').textContent = `${idx+1} / ${SCENES.length}`;
+
+  if (autoplay) scheduleAuto();
+}
+
+function typeText(text, cb) {
+  const el = $('narr-text');
+  el.classList.remove('show');
+  el.innerHTML = '';
+  // Remove old tap hints
+  document.querySelectorAll('.tap-hint').forEach(h=>h.remove());
+
+  setTimeout(() => {
+    el.classList.add('show');
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    function type() {
+      if (i < text.length) {
+        if (text[i]==='\n') el.appendChild(document.createElement('br'));
+        else el.appendChild(document.createTextNode(text[i]));
+        el.appendChild(cursor);
+        i++;
+        const d = '.—!?'.includes(text[i-1])?55:text[i-1]===','?35:15;
+        typeTimer = setTimeout(type, d);
+      } else {
+        setTimeout(()=>cursor.remove(), 2000);
+        // Show tap hint if dialogue chain
+        const scene = SCENES[currentScene];
+        if (scene.dialogueChain && scene.dialogueChain.length && dialogueIndex < scene.dialogueChain.length) {
+          const hint = document.createElement('div');
+          hint.className = 'tap-hint';
+          hint.textContent = '▼ tap to continue ▼';
+          $('narration').appendChild(hint);
+        }
+        if (cb) cb();
+      }
+    }
+    type();
+  }, 200);
+}
+
+function advanceDialogue() {
+  const scene = SCENES[currentScene];
+  if (!scene.dialogueChain || dialogueIndex >= scene.dialogueChain.length) return;
+  const d = scene.dialogueChain[dialogueIndex];
+  $('narr-label').innerHTML = d.speaker + ' <span class="sound-ind" id="sound-ind"><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span></span>';
+  stopSpeech();
+  typeText(d.text);
+  speakText(d.text, d.speaker || 'NARRATOR');
+  dialogueIndex++;
+  if (dialogueIndex >= scene.dialogueChain.length) {
+    $('narration').style.cursor = 'default';
+    $('narration').onclick = null;
+  }
+}
+
+// Speech bubble system
+let activeBubble = null;
+function showSpeechBubble(wrap, name, text) {
+  if (activeBubble) activeBubble.remove();
+  const bubble = document.createElement('div');
+  bubble.className = 'speech-bubble';
+  const clean = name.replace('-sil','').replace('eyes-opening','Watchers');
+  bubble.innerHTML = `<div class="spk-name">${clean}</div>${text}`;
+  bubble.style.bottom = '105%';
+  bubble.style.left = '50%';
+  bubble.style.transform = 'translateX(-50%) translateY(10px) scale(0.9)';
+  wrap.appendChild(bubble);
+  activeBubble = bubble;
+  requestAnimationFrame(() => bubble.classList.add('show'));
+  setTimeout(() => { bubble.classList.remove('show'); setTimeout(()=>bubble.remove(),400); }, 3500);
+}
+
+function handleCharClick(name, wrap) {
+  wrap.classList.add('speaking');
+  wrap.classList.remove('char-idle');
+  wrap.classList.add('char-walk');
+  setTimeout(() => { wrap.classList.remove('speaking','char-walk'); wrap.classList.add('char-idle'); }, 2500);
+
+  const quotes = {
+    'ironside':['We are the memory of the land.','When we forget, the land forgets.','Stand where you can see the most.','Get it together, Dusty. Sun\'s coming.'],
+    'barrel':['I got plenty. Don\'t argue with a cactus.','We always grow more.','Nobody goes hungry on my watch.','Give from what you grow.'],
+    'needles':['I felt a tingle today! Right here!','Is this an arm? Somebody look!','I\'m going to be an Elder someday!','The smallest creature deserves the same watch.'],
+    'rosie':['Grace under pressure is a superpower.','Remember the path, even when it\'s hard.','Roadrunners. All engine, no steering.','Send Zip. He\'ll handle it.'],
+    'zip':['I\'m the fastest bird! Did you see?!','Already handled it. Obviously.','WHOOSH! That\'s the sound I make!','Not for the applause... okay, a little.'],
+    'javelina':['*snort* *snuffle*','Mama Jav keeps the herd together.','Three days since we\'ve eaten well...','The babies are getting weak.'],
+    'gila':['Fine. Going back in now.','I saw what I needed to see. Goodnight.','...','*disappears underground*'],
+    'owl':['I need the south boot this season.','That packrat was in your wall.','300 psi. Just saying.','*adjusts talons*'],
+    'ironside-sil':['...the amber eyes glow in the darkness...','A shape moves on the ridge...'],
+    'eyes-opening':['One... then another... then ten thousand...']
+  };
+  const q = quotes[name] || ['...'];
+  const chosenQuote = q[Math.floor(Math.random()*q.length)];
+  showSpeechBubble(wrap, name, chosenQuote);
+  // Speak the character quote
+  const speakerName = name.replace('-sil','').replace('eyes-opening','NARRATOR').toUpperCase();
+  speakText(chosenQuote, VOICE_PROFILES[speakerName] ? speakerName : 'NARRATOR');
+}
+
+// ===== VOICE NARRATION ENGINE =====
+let voiceEnabled = false;
+let voicesLoaded = false;
+let availableVoices = [];
+let currentUtterance = null;
+
+// Sound indicator bars for narration box
+const SOUND_BARS_HTML = `<span class="sound-ind" id="sound-ind"><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span><span class="sb"></span></span>`;
+
+// Character voice profiles: pitch (0.1-2), rate (0.1-2), voicePrefs (keywords to match against available voices)
+const VOICE_PROFILES = {
+  'NARRATOR':       { pitch: 1.0,  rate: 0.88, voiceKeywords: ['Daniel','David','James','Aaron','Google US'], gender: 'male', fallbackPitch: 0.9 },
+  'OLD IRONSIDE':   { pitch: 0.55, rate: 0.72, voiceKeywords: ['Daniel','David','James','Google UK'], gender: 'male', fallbackPitch: 0.5 },
+  'BARREL':         { pitch: 0.75, rate: 0.82, voiceKeywords: ['Alex','Tom','Fred','Google US'], gender: 'male', fallbackPitch: 0.7 },
+  'NEEDLES':        { pitch: 1.45, rate: 1.05, voiceKeywords: ['Samantha','Karen','Junior','Google US'], gender: 'any', fallbackPitch: 1.4 },
+  'ROSIE':          { pitch: 1.15, rate: 0.88, voiceKeywords: ['Samantha','Victoria','Karen','Moira','Google UK Female'], gender: 'female', fallbackPitch: 1.2 },
+  'ZIP':            { pitch: 1.6,  rate: 1.25, voiceKeywords: ['Junior','Zarvox','Trinoids','Google US'], gender: 'male', fallbackPitch: 1.5 },
+  'MAMA JAV':       { pitch: 1.0,  rate: 0.8,  voiceKeywords: ['Samantha','Victoria','Karen','Google US'], gender: 'female', fallbackPitch: 1.05 },
+  'GIL':            { pitch: 0.6,  rate: 0.65, voiceKeywords: ['Daniel','Fred','Google UK'], gender: 'male', fallbackPitch: 0.55 },
+  'TALON':          { pitch: 0.7,  rate: 0.78, voiceKeywords: ['Alex','Daniel','Google UK'], gender: 'male', fallbackPitch: 0.65 },
+  'SPINE':          { pitch: 0.85, rate: 0.82, voiceKeywords: ['Tom','David','Google US'], gender: 'male', fallbackPitch: 0.8 },
+  'GRIZZLE':        { pitch: 0.5,  rate: 0.7,  voiceKeywords: ['Daniel','Fred','Google UK'], gender: 'male', fallbackPitch: 0.5 },
+  'PICK':           { pitch: 0.8,  rate: 0.8,  voiceKeywords: ['Alex','Tom','Google US'], gender: 'male', fallbackPitch: 0.75 },
+  'NUGGET':         { pitch: 0.9,  rate: 0.85, voiceKeywords: ['David','Aaron','Google US'], gender: 'male', fallbackPitch: 0.85 },
+  'DUSTY':          { pitch: 1.3,  rate: 1.0,  voiceKeywords: ['Junior','Samantha','Google US'], gender: 'any', fallbackPitch: 1.25 },
+  'FLATS':          { pitch: 0.65, rate: 0.75, voiceKeywords: ['Daniel','David','Google UK'], gender: 'male', fallbackPitch: 0.6 }
+};
+
+function initVoices() {
+  const synth = window.speechSynthesis;
+  if (!synth) return;
+
+  function loadVoices() {
+    availableVoices = synth.getVoices();
+    if (availableVoices.length > 0) voicesLoaded = true;
+  }
+
+  loadVoices();
+  if (synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = loadVoices;
+  }
+  // Fallback poll for voices (some browsers are slow)
+  if (!voicesLoaded) {
+    let attempts = 0;
+    const poller = setInterval(() => {
+      loadVoices();
+      attempts++;
+      if (voicesLoaded || attempts > 20) clearInterval(poller);
+    }, 200);
+  }
+}
+
+function findVoiceForProfile(profile) {
+  if (!voicesLoaded || availableVoices.length === 0) return null;
+
+  // Try to match by keyword preference
+  for (const kw of profile.voiceKeywords) {
+    const match = availableVoices.find(v => v.name.includes(kw) && v.lang.startsWith('en'));
+    if (match) return match;
+  }
+
+  // Try gender preference with English voices
+  const enVoices = availableVoices.filter(v => v.lang.startsWith('en'));
+  if (profile.gender === 'female') {
+    const fem = enVoices.find(v => /female|samantha|karen|victoria|moira|fiona|tessa|zoe/i.test(v.name));
+    if (fem) return fem;
+  } else if (profile.gender === 'male') {
+    const mal = enVoices.find(v => /male|daniel|david|james|tom|alex|aaron|fred|lee/i.test(v.name) && !/female/i.test(v.name));
+    if (mal) return mal;
+  }
+
+  // Just return any English voice
+  return enVoices[0] || availableVoices[0] || null;
+}
+
+function speakText(text, speaker, onEnd) {
+  const synth = window.speechSynthesis;
+  if (!synth || !voiceEnabled) { if (onEnd) onEnd(); return; }
+
+  // Cancel any current speech
+  synth.cancel();
+
+  // Clean text for speech - strip symbols, asterisks, etc.
+  let cleanText = text
+    .replace(/✦/g, '')
+    .replace(/\*/g, '')
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .replace(/—/g, ', ')
+    .replace(/\.\.\./g, '...')
+    .replace(/\n+/g, '. ')
+    .replace(/THE END/g, 'The End.')
+    .replace(/Written by Wayne Jordan/g, 'Written by Wayne Jordan.')
+    .replace(/For Sylas/g, 'For Sylas.')
+    .trim();
+
+  if (!cleanText) { if (onEnd) onEnd(); return; }
+
+  const profile = VOICE_PROFILES[speaker] || VOICE_PROFILES['NARRATOR'];
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+
+  const voice = findVoiceForProfile(profile);
+  if (voice) utterance.voice = voice;
+
+  utterance.pitch = voice ? profile.pitch : profile.fallbackPitch;
+  utterance.rate = profile.rate;
+  utterance.volume = 0.9;
+
+  // Show sound indicator
+  const ind = $('sound-ind');
+  if (ind) ind.classList.add('active');
+
+  utterance.onend = () => {
+    currentUtterance = null;
+    if (ind) ind.classList.remove('active');
+    if (onEnd) onEnd();
+  };
+  utterance.onerror = () => {
+    currentUtterance = null;
+    if (ind) ind.classList.remove('active');
+    if (onEnd) onEnd();
+  };
+
+  // Chrome bug workaround: long utterances get cut off
+  // Keep synthesis alive with periodic resume
+  let keepAlive = null;
+  utterance.onstart = () => {
+    keepAlive = setInterval(() => {
+      if (synth.speaking && !synth.paused) {
+        synth.pause();
+        synth.resume();
+      }
+    }, 10000);
+  };
+  const origOnEnd = utterance.onend;
+  utterance.onend = () => {
+    clearInterval(keepAlive);
+    origOnEnd();
+  };
+  const origOnError = utterance.onerror;
+  utterance.onerror = () => {
+    clearInterval(keepAlive);
+    origOnError();
+  };
+
+  currentUtterance = utterance;
+  synth.speak(utterance);
+}
+
+function stopSpeech() {
+  const synth = window.speechSynthesis;
+  if (synth) synth.cancel();
+  currentUtterance = null;
+  const ind = $('sound-ind');
+  if (ind) ind.classList.remove('active');
+}
+
+function toggleVoice() {
+  voiceEnabled = !voiceEnabled;
+  $('btn-voice').textContent = voiceEnabled ? '🔊' : '🔇';
+  $('btn-voice').title = voiceEnabled ? 'Voice On' : 'Voice Off';
+
+  if (voiceEnabled) {
+    // Speak current scene text immediately
+    const scene = SCENES[currentScene];
+    speakText(scene.text, scene.label || 'NARRATOR');
+  } else {
+    stopSpeech();
+  }
+}
+
+// Init
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
